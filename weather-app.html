@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天気記録アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2em;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .records {
+            margin-top: 30px;
+        }
+
+        .records h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .record-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .record-item:hover {
+            transform: translateX(5px);
+            background: #e9ecef;
+        }
+
+        .record-date {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .record-weather {
+            color: #555;
+            font-size: 1.1em;
+        }
+
+        .no-records {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>☀️ 天気記録アプリ</h1>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label for="date">日付</label>
+                <input type="date" id="date" value="">
+            </div>
+
+            <div class="input-group">
+                <label for="weather">天気</label>
+                <input type="text" id="weather" placeholder="例: 晴れ、曇り、雨など">
+            </div>
+
+            <button onclick="recordWeather()">記録する</button>
+        </div>
+
+        <div class="records">
+            <h2>記録一覧</h2>
+            <div id="recordList"></div>
+        </div>
+    </div>
+
+    <script>
+        // 今日の日付をデフォルトで設定
+        document.getElementById('date').valueAsDate = new Date();
+
+        // ローカルストレージから記録を読み込む
+        function loadRecords() {
+            const records = JSON.parse(localStorage.getItem('weatherRecords') || '[]');
+            return records;
+        }
+
+        // 記録を保存
+        function saveRecords(records) {
+            localStorage.setItem('weatherRecords', JSON.stringify(records));
+        }
+
+        // 記録を表示
+        function displayRecords() {
+            const records = loadRecords();
+            const recordList = document.getElementById('recordList');
+
+            if (records.length === 0) {
+                recordList.innerHTML = '<div class="no-records">まだ記録がありません</div>';
+                return;
+            }
+
+            recordList.innerHTML = records
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .map((record, index) => `
+                    <div class="record-item">
+                        <div>
+                            <span class="record-date">${record.date}</span>
+                            <span class="record-weather"> - ${record.weather}</span>
+                        </div>
+                        <button class="delete-btn" onclick="deleteRecord(${index})">削除</button>
+                    </div>
+                `).join('');
+        }
+
+        // 天気を記録
+        function recordWeather() {
+            const date = document.getElementById('date').value;
+            const weather = document.getElementById('weather').value.trim();
+
+            if (!date) {
+                alert('日付を選択してください');
+                return;
+            }
+
+            if (!weather) {
+                alert('天気を入力してください');
+                return;
+            }
+
+            const records = loadRecords();
+            records.push({ date, weather });
+            saveRecords(records);
+
+            // 入力フィールドをクリア
+            document.getElementById('weather').value = '';
+            document.getElementById('date').valueAsDate = new Date();
+
+            displayRecords();
+        }
+
+        // 記録を削除
+        function deleteRecord(index) {
+            if (confirm('この記録を削除しますか?')) {
+                const records = loadRecords();
+                records.splice(index, 1);
+                saveRecords(records);
+                displayRecords();
+            }
+        }
+
+        // Enterキーで記録
+        document.getElementById('weather').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                recordWeather();
+            }
+        });
+
+        // 初期表示
+        displayRecords();
+    </script>
+</body>
+</html>
