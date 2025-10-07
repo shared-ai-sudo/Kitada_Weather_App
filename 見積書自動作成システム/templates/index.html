@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI見積書生成システム</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab:hover {
+            background: #f5f5f5;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .estimate-items {
+            margin-top: 20px;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 3fr 1fr 1fr 1.5fr 1.5fr 60px;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: end;
+        }
+
+        .price-info {
+            grid-column: 4 / 6;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 8px;
+            margin-top: 5px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .price-info.active {
+            display: block;
+        }
+
+        .price-info .base-price {
+            color: #6c757d;
+        }
+
+        .price-info .adjusted-price {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .price-info .price-difference {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .price-info .price-difference.positive {
+            color: #dc3545;
+        }
+
+        .price-info .price-difference.negative {
+            color: #28a745;
+        }
+
+        .remove-btn {
+            background: #e74c3c;
+            padding: 12px;
+            font-size: 14px;
+        }
+
+        .add-item-btn {
+            background: #27ae60;
+            margin-top: 10px;
+        }
+
+        .total-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            text-align: right;
+        }
+
+        .total-amount {
+            font-size: 2em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: none;
+            white-space: pre-line;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-left: 4px solid #28a745;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-left: 4px solid #dc3545;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI見積書生成システム</h1>
+            <p class="subtitle">効率的な見積書作成をサポート</p>
+        </header>
+
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('estimate')">見積作成</button>
+                <button class="tab" onclick="switchTab('customer')">顧客登録</button>
+                <button class="tab" onclick="switchTab('history')">見積履歴</button>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <!-- 見積作成タブ -->
+            <div id="estimate-tab" class="tab-content active">
+                <h2>見積書作成</h2>
+
+                <div class="form-group">
+                    <label>顧客選択 <span style="color: red;">*</span></label>
+                    <select id="customer-select" style="font-size: 16px; padding: 15px;">
+                        <option value="">▼ 顧客を選択してください...</option>
+                    </select>
+                </div>
+
+                <div id="customer-info" style="display: none; background: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">選択中の顧客情報</h4>
+                    <p id="customer-details"></p>
+                </div>
+
+                <h3>見積項目</h3>
+                <div class="estimate-items" id="estimate-items">
+                    <div class="item-row">
+                        <div>
+                            <label>商品名 <span style="color: red;">*</span></label>
+                            <select class="product-select" style="font-size: 14px;">
+                                <option value="">▼ 商品を選択してください...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>数量</label>
+                            <input type="number" class="quantity" value="1" min="1">
+                        </div>
+                        <div>
+                            <label>単位</label>
+                            <input type="text" class="unit" value="個" readonly style="background: #f5f5f5;">
+                        </div>
+                        <div>
+                            <label>単価（円）</label>
+                            <input type="number" class="unit-price" value="0">
+                        </div>
+                        <div>
+                            <label>金額（円）</label>
+                            <input type="number" class="amount" value="0" readonly style="background: #f5f5f5; font-weight: bold;">
+                        </div>
+                        <div>
+                            <label>&nbsp;</label>
+                            <button class="remove-btn" onclick="removeItem(this)">削除</button>
+                        </div>
+                        <div class="price-info">
+                            <div class="base-price">基本価格: ¥<span class="base-price-value">0</span></div>
+                            <div class="adjusted-price">調整後: ¥<span class="adjusted-price-value">0</span></div>
+                            <div class="price-difference">差額: <span class="diff-value">¥0</span> (<span class="diff-percent">0%</span>)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="add-item-btn" onclick="addItem()">+ 項目を追加</button>
+
+                <div class="total-section">
+                    <p>合計金額</p>
+                    <div class="total-amount" id="total-amount">¥0</div>
+                </div>
+
+                <div class="form-group">
+                    <label>備考</label>
+                    <textarea id="notes" rows="3" placeholder="例: 配送費込みの価格です。設置作業が必要な場合は別途お見積りいたします。"></textarea>
+                </div>
+
+                <button onclick="generateEstimate()" style="font-size: 18px; padding: 15px 40px;">📄 見積書を生成</button>
+            </div>
+
+            <!-- 顧客登録タブ -->
+            <div id="customer-tab" class="tab-content">
+                <h2>新規顧客登録</h2>
+
+                <!-- PDFアップロードセクション -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px; border: 2px dashed #667eea;">
+                    <h3 style="margin-bottom: 15px; color: #667eea;">📄 見積書PDFから自動登録</h3>
+                    <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
+                        見積書PDFファイルをアップロードすると、顧客情報と商品情報を自動的に抽出して登録します。
+                    </p>
+                    <div class="form-group">
+                        <input type="file" id="pdf-file" accept=".pdf" style="padding: 10px; border: 2px solid #ddd;">
+                    </div>
+                    <button onclick="uploadPDF()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        📤 PDFをアップロード
+                    </button>
+                </div>
+
+                <hr style="margin: 30px 0; border: 1px solid #eee;">
+
+                <h3 style="margin-bottom: 20px;">または手動で登録</h3>
+
+                <div class="form-group">
+                    <label>会社名 <span style="color: red;">*</span></label>
+                    <input type="text" id="company-name" placeholder="例: 株式会社サンプル商事" required>
+                </div>
+
+                <div class="form-group">
+                    <label>住所 <span style="color: red;">*</span></label>
+                    <input type="text" id="address" placeholder="例: 東京都千代田区千代田1-1-1" required>
+                    <small style="color: #666; font-size: 12px;">※ 住所から自動的に座標を取得し、拠点からの距離を計算します</small>
+                </div>
+
+                <div class="form-group">
+                    <label>電話番号</label>
+                    <input type="tel" id="phone" placeholder="例: 03-1234-5678">
+                </div>
+
+                <div class="form-group">
+                    <label>メールアドレス</label>
+                    <input type="email" id="email" placeholder="例: contact@example.com">
+                </div>
+
+                <button onclick="registerCustomer()">顧客を登録</button>
+            </div>
+
+            <!-- 見積履歴タブ -->
+            <div id="history-tab" class="tab-content">
+                <h2>見積履歴</h2>
+                <table id="estimate-history">
+                    <thead>
+                        <tr>
+                            <th>見積番号</th>
+                            <th>顧客名</th>
+                            <th>金額</th>
+                            <th>作成日</th>
+                            <th>ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let customers = [];
+        let products = [];
+        let selectedCustomerDistance = 0; // 選択された顧客の距離
+
+        // 初期化
+        async function init() {
+            console.log('🚀 システム初期化開始...');
+            try {
+                await loadCustomers();
+                await loadProducts();
+                await loadEstimateHistory();
+                console.log('✅ システム初期化完了');
+            } catch (error) {
+                console.error('❌ 初期化エラー:', error);
+                showMessage('❌ データの読み込みに失敗しました。ページを再読み込みしてください。', 'error');
+            }
+        }
+
+        // 顧客データを読み込み
+        async function loadCustomers() {
+            console.log('📥 顧客データを読み込み中...');
+            try {
+                const response = await fetch('/api/customers');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                customers = await response.json();
+                console.log(`✅ 顧客データ読み込み完了: ${customers.length}件`);
+
+                const select = document.getElementById('customer-select');
+                select.innerHTML = '<option value="">▼ 顧客を選択してください...</option>';
+
+                customers.forEach(customer => {
+                    const option = document.createElement('option');
+                    option.value = customer.customer_id;
+                    const distance = customer.distance_km ? ` [拠点から ${customer.distance_km.toFixed(1)}km]` : '';
+                    option.textContent = `${customer.company_name}${distance} - ${customer.address}`;
+                    option.dataset.companyName = customer.company_name;
+                    option.dataset.address = customer.address;
+                    option.dataset.phone = customer.phone || '';
+                    option.dataset.distance = customer.distance_km || '';
+                    select.appendChild(option);
+                });
+
+                // 顧客選択時のイベント
+                select.addEventListener('change', async function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const customerInfo = document.getElementById('customer-info');
+                    const customerDetails = document.getElementById('customer-details');
+
+                    if (this.value) {
+                        // 選択された顧客の距離を保存
+                        selectedCustomerDistance = parseFloat(selectedOption.dataset.distance) || 0;
+
+                        const distance = selectedOption.dataset.distance ?
+                            `<br>📍 拠点からの距離: ${parseFloat(selectedOption.dataset.distance).toFixed(1)} km` : '';
+                        const phone = selectedOption.dataset.phone ?
+                            `<br>📞 電話: ${selectedOption.dataset.phone}` : '';
+
+                        customerDetails.innerHTML = `
+                            <strong>🏢 ${selectedOption.dataset.companyName}</strong>
+                            <br>📮 住所: ${selectedOption.dataset.address}${phone}${distance}
+                        `;
+                        customerInfo.style.display = 'block';
+
+                        // 既に選択されている商品の価格を再計算
+                        await recalculateAllPrices();
+                    } else {
+                        selectedCustomerDistance = 0;
+                        customerInfo.style.display = 'none';
+
+                        // 価格情報をリセット
+                        await recalculateAllPrices();
+                    }
+                });
+            } catch (error) {
+                console.error('❌ 顧客データ読み込みエラー:', error);
+                throw error;
+            }
+        }
+
+        // 商品データを読み込み
+        async function loadProducts() {
+            console.log('📥 商品データを読み込み中...');
+            try {
+                const response = await fetch('/api/products');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                products = await response.json();
+                console.log(`✅ 商品データ読み込み完了: ${products.length}件`);
+
+                await updateProductSelects();
+            } catch (error) {
+                console.error('❌ 商品データ読み込みエラー:', error);
+                throw error;
+            }
+        }
+
+        // 商品選択肢を更新（距離調整価格を反映）
+        async function updateProductSelects() {
+            console.log('📦 商品選択肢を更新中... (selectedCustomerDistance:', selectedCustomerDistance, 'km)');
+            const selects = document.querySelectorAll('.product-select');
+
+            for (const select of selects) {
+                // 現在の選択値を保存
+                const currentValue = select.value;
+
+                select.innerHTML = '<option value="">▼ 商品を選択してください...</option>';
+
+                for (const product of products) {
+                    const option = document.createElement('option');
+                    option.value = product.product_id;
+                    const category = product.product_category ? `[${product.product_category}] ` : '';
+
+                    // 基本価格を表示（初期ロード時は距離調整価格を計算しない）
+                    let priceDisplay = `¥${product.base_price.toLocaleString()}`;
+
+                    // 距離調整価格の計算は商品選択時のみ行う（パフォーマンス改善）
+                    // updateProductSelects()では基本価格のみ表示
+
+                    option.textContent = `${category}${product.product_name} - ${priceDisplay} / ${product.unit}`;
+                    option.dataset.basePrice = product.base_price;
+                    option.dataset.unit = product.unit;
+                    option.dataset.name = product.product_name;
+                    option.dataset.category = product.product_category || '';
+                    option.dataset.productId = product.product_id;
+                    select.appendChild(option);
+                }
+
+                // 保存した選択値を復元
+                if (currentValue) {
+                    select.value = currentValue;
+                }
+
+                // 商品選択時のイベント（重複登録を防ぐため、既にイベントが設定されている場合はスキップ）
+                if (!select.dataset.eventAttached) {
+                    select.dataset.eventAttached = 'true';
+                    select.addEventListener('change', async function() {
+                        const row = this.closest('.item-row');
+                        const selectedOption = this.options[this.selectedIndex];
+
+                        if (selectedOption.value) {
+                            row.querySelector('.unit').value = selectedOption.dataset.unit;
+
+                            // 距離調整価格を計算して価格情報を表示
+                            const productId = selectedOption.value;
+                            const basePrice = parseInt(selectedOption.dataset.basePrice);
+                            const quantity = parseInt(row.querySelector('.quantity').value) || 1;
+
+                            const result = await calculateDistanceAdjustedPriceWithInfo(productId, basePrice, selectedCustomerDistance, quantity);
+
+                            row.querySelector('.unit-price').value = result.adjusted_price;
+                            calculateRowAmount(row);
+
+                            // 価格情報を表示
+                            displayPriceInfo(row, result);
+
+                            // 選択された商品を視覚的に強調
+                            this.style.borderColor = '#667eea';
+                            this.style.borderWidth = '2px';
+                        } else {
+                            this.style.borderColor = '#ddd';
+                            this.style.borderWidth = '2px';
+
+                            // 価格情報を非表示
+                            row.querySelector('.price-info').classList.remove('active');
+                        }
+                    });
+                }
+            }
+        }
+
+        // 項目を追加
+        async function addItem() {
+            const container = document.getElementById('estimate-items');
+            const newRow = container.querySelector('.item-row').cloneNode(true);
+
+            // 値をリセット
+            newRow.querySelector('.product-select').value = '';
+            newRow.querySelector('.quantity').value = 1;
+            newRow.querySelector('.unit').value = '個';
+            newRow.querySelector('.unit-price').value = 0;
+            newRow.querySelector('.amount').value = 0;
+
+            // 価格情報を非表示
+            newRow.querySelector('.price-info').classList.remove('active');
+
+            container.appendChild(newRow);
+            await updateProductSelects();
+            attachCalculationEvents(newRow);
+        }
+
+        // 項目を削除
+        function removeItem(button) {
+            const container = document.getElementById('estimate-items');
+            if (container.querySelectorAll('.item-row').length > 1) {
+                button.closest('.item-row').remove();
+                calculateTotal();
+            }
+        }
+
+        // 行の金額を計算
+        function calculateRowAmount(row) {
+            const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+            const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+            const amount = quantity * unitPrice;
+
+            row.querySelector('.amount').value = amount;
+            calculateTotal();
+        }
+
+        // 合計を計算
+        function calculateTotal() {
+            const rows = document.querySelectorAll('.item-row');
+            let total = 0;
+
+            rows.forEach(row => {
+                const amount = parseFloat(row.querySelector('.amount').value) || 0;
+                total += amount;
+            });
+
+            document.getElementById('total-amount').textContent = `¥${total.toLocaleString()}`;
+        }
+
+        // 計算イベントをアタッチ
+        function attachCalculationEvents(row) {
+            row.querySelector('.quantity').addEventListener('input', async () => {
+                calculateRowAmount(row);
+
+                // 数量変更時に価格情報を再計算
+                const productSelect = row.querySelector('.product-select');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+                if (selectedOption.value) {
+                    const productId = selectedOption.value;
+                    const basePrice = parseInt(selectedOption.dataset.basePrice);
+                    const quantity = parseInt(row.querySelector('.quantity').value) || 1;
+
+                    const result = await calculateDistanceAdjustedPriceWithInfo(productId, basePrice, selectedCustomerDistance, quantity);
+                    row.querySelector('.unit-price').value = result.adjusted_price;
+                    calculateRowAmount(row);
+                    displayPriceInfo(row, result);
+                }
+            });
+
+            row.querySelector('.unit-price').addEventListener('input', () => calculateRowAmount(row));
+        }
+
+        // 初期イベント設定
+        document.querySelectorAll('.item-row').forEach(row => {
+            attachCalculationEvents(row);
+        });
+
+        // タブ切り替え
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            if (tabName === 'history') {
+                loadEstimateHistory();
+            }
+        }
+
+        // 顧客を登録
+        async function registerCustomer() {
+            const data = {
+                company_name: document.getElementById('company-name').value,
+                address: document.getElementById('address').value,
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value
+            };
+
+            if (!data.company_name || !data.address) {
+                showMessage('会社名と住所は必須です', 'error');
+                return;
+            }
+
+            const response = await fetch('/api/customer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const distanceInfo = result.distance_km ?
+                    `\n📍 拠点からの距離: ${result.distance_km.toFixed(1)} km` : '';
+                showMessage(`✅ 顧客を登録しました！\n🏢 ${data.company_name}${distanceInfo}`, 'success');
+                await loadCustomers();
+
+                // フォームをリセット
+                document.getElementById('company-name').value = '';
+                document.getElementById('address').value = '';
+                document.getElementById('phone').value = '';
+                document.getElementById('email').value = '';
+
+                // 見積作成タブに切り替え
+                setTimeout(() => {
+                    document.querySelector('.tab').click();
+                }, 2000);
+            } else {
+                showMessage(`❌ 顧客登録に失敗しました: ${result.error || '不明なエラー'}`, 'error');
+            }
+        }
+
+        // 見積書を生成
+        async function generateEstimate() {
+            const customerId = document.getElementById('customer-select').value;
+
+            if (!customerId) {
+                showMessage('❌ 顧客を選択してください', 'error');
+                document.getElementById('customer-select').focus();
+                return;
+            }
+
+            const rows = document.querySelectorAll('.item-row');
+            const items = [];
+            let hasEmptyProduct = false;
+
+            rows.forEach(row => {
+                const productSelect = row.querySelector('.product-select');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+                if (selectedOption.value) {
+                    const quantity = parseFloat(row.querySelector('.quantity').value);
+                    const unitPrice = parseFloat(row.querySelector('.unit-price').value);
+
+                    if (quantity <= 0 || unitPrice < 0) {
+                        hasEmptyProduct = true;
+                        return;
+                    }
+
+                    items.push({
+                        name: selectedOption.dataset.name,
+                        quantity: quantity,
+                        unit: row.querySelector('.unit').value,
+                        unit_price: unitPrice,
+                        amount: parseFloat(row.querySelector('.amount').value)
+                    });
+                }
+            });
+
+            if (hasEmptyProduct) {
+                showMessage('❌ 数量と単価を正しく入力してください', 'error');
+                return;
+            }
+
+            if (items.length === 0) {
+                showMessage('❌ 見積項目を少なくとも1つ追加してください', 'error');
+                return;
+            }
+
+            const data = {
+                customer_id: customerId,
+                items: items,
+                notes: document.getElementById('notes').value
+            };
+
+            const response = await fetch('/api/generate_estimate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+                showMessage(`✅ 見積書を生成しました！\n見積番号: ${result.estimate_number}\n合計金額: ¥${totalAmount.toLocaleString()}\nPDFファイル: ${result.pdf_path}`, 'success');
+                await loadEstimateHistory();
+
+                // フォームをリセット
+                document.getElementById('customer-select').value = '';
+                document.getElementById('customer-info').style.display = 'none';
+                document.getElementById('notes').value = '';
+
+                // 見積項目を1つだけに戻す
+                const container = document.getElementById('estimate-items');
+                const rows = container.querySelectorAll('.item-row');
+                rows.forEach((row, index) => {
+                    if (index > 0) row.remove();
+                });
+
+                // 最初の行をリセット
+                const firstRow = container.querySelector('.item-row');
+                firstRow.querySelector('.product-select').value = '';
+                firstRow.querySelector('.quantity').value = 1;
+                firstRow.querySelector('.unit').value = '個';
+                firstRow.querySelector('.unit-price').value = 0;
+                firstRow.querySelector('.amount').value = 0;
+                calculateTotal();
+            } else {
+                showMessage(`❌ 見積書生成に失敗しました: ${result.error || '不明なエラー'}`, 'error');
+            }
+        }
+
+        // 見積履歴を読み込み
+        async function loadEstimateHistory() {
+            console.log('📥 見積履歴を読み込み中...');
+            try {
+                const response = await fetch('/api/estimates');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const estimates = await response.json();
+                console.log(`✅ 見積履歴読み込み完了: ${estimates.length}件`);
+
+                const tbody = document.querySelector('#estimate-history tbody');
+                tbody.innerHTML = '';
+
+                estimates.forEach(estimate => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>EST-${estimate.estimate_id}</td>
+                        <td>${estimate.company_name}</td>
+                        <td>¥${estimate.total_amount.toLocaleString()}</td>
+                        <td>${new Date(estimate.created_at).toLocaleDateString('ja-JP')}</td>
+                        <td>${estimate.status}</td>
+                    `;
+                });
+            } catch (error) {
+                console.error('❌ 見積履歴読み込みエラー:', error);
+                // 見積履歴はエラーでもスキップして続行
+            }
+        }
+
+        // 距離調整価格を計算（詳細情報付き）
+        async function calculateDistanceAdjustedPriceWithInfo(productId, basePrice, distanceKm, quantity = 1) {
+            try {
+                const response = await fetch('/api/calculate_distance_price', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        product_id: productId,
+                        base_price: basePrice,
+                        distance_km: distanceKm,
+                        quantity: quantity
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    return result.result;
+                } else {
+                    console.error('価格調整エラー:', result.error);
+                    return {
+                        base_price: basePrice,
+                        adjusted_price: basePrice,
+                        adjustment_amount: 0,
+                        adjustment_type: 'fixed'
+                    };
+                }
+            } catch (error) {
+                console.error('価格計算API呼び出しエラー:', error);
+                return {
+                    base_price: basePrice,
+                    adjusted_price: basePrice,
+                    adjustment_amount: 0,
+                    adjustment_type: 'fixed'
+                };
+            }
+        }
+
+        // 価格情報を表示
+        function displayPriceInfo(row, result) {
+            const priceInfo = row.querySelector('.price-info');
+            const basePriceValue = priceInfo.querySelector('.base-price-value');
+            const adjustedPriceValue = priceInfo.querySelector('.adjusted-price-value');
+            const diffValue = priceInfo.querySelector('.diff-value');
+            const diffPercent = priceInfo.querySelector('.diff-percent');
+            const diffContainer = priceInfo.querySelector('.price-difference');
+
+            basePriceValue.textContent = result.base_price.toLocaleString();
+            adjustedPriceValue.textContent = result.adjusted_price.toLocaleString();
+
+            const diff = result.adjustment_amount;
+            const diffPercentValue = result.base_price > 0 ? (diff / result.base_price * 100).toFixed(1) : 0;
+
+            if (diff > 0) {
+                diffValue.textContent = `+¥${diff.toLocaleString()}`;
+                diffPercent.textContent = `+${diffPercentValue}%`;
+                diffContainer.className = 'price-difference positive';
+            } else if (diff < 0) {
+                diffValue.textContent = `-¥${Math.abs(diff).toLocaleString()}`;
+                diffPercent.textContent = `${diffPercentValue}%`;
+                diffContainer.className = 'price-difference negative';
+            } else {
+                diffValue.textContent = '¥0';
+                diffPercent.textContent = '0%';
+                diffContainer.className = 'price-difference';
+            }
+
+            priceInfo.classList.add('active');
+        }
+
+        // すべての商品の価格を再計算
+        async function recalculateAllPrices() {
+            const rows = document.querySelectorAll('.item-row');
+
+            for (const row of rows) {
+                const productSelect = row.querySelector('.product-select');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+                if (selectedOption.value) {
+                    const productId = selectedOption.value;
+                    const basePrice = parseInt(selectedOption.dataset.basePrice);
+                    const quantity = parseInt(row.querySelector('.quantity').value) || 1;
+
+                    const result = await calculateDistanceAdjustedPriceWithInfo(productId, basePrice, selectedCustomerDistance, quantity);
+
+                    row.querySelector('.unit-price').value = result.adjusted_price;
+                    calculateRowAmount(row);
+                    displayPriceInfo(row, result);
+                }
+            }
+        }
+
+        // PDFファイルをアップロード
+        async function uploadPDF() {
+            const fileInput = document.getElementById('pdf-file');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showMessage('❌ PDFファイルを選択してください', 'error');
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showMessage('❌ PDFファイルを選択してください', 'error');
+                return;
+            }
+
+            // FormDataを作成
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showMessage('📤 PDFをアップロード中...', 'success');
+
+                const response = await fetch('/api/upload_pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const message = `✅ PDFから情報を登録しました！\n\n` +
+                        `👥 顧客: ${result.customers_added}件追加\n` +
+                        `📦 商品: ${result.products_added}件追加\n\n` +
+                        `顧客名: ${result.customer_name || '不明'}\n` +
+                        `総商品数: ${result.total_products}件`;
+
+                    showMessage(message, 'success');
+
+                    // 顧客と商品のリストを再読み込み
+                    await loadCustomers();
+                    await loadProducts();
+
+                    // ファイル選択をリセット
+                    fileInput.value = '';
+
+                    // 2秒後に見積作成タブに切り替え
+                    setTimeout(() => {
+                        document.querySelector('.tab').click();
+                    }, 2000);
+                } else {
+                    showMessage(`❌ PDFのアップロードに失敗しました\n${result.error || '不明なエラー'}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ PDFのアップロードに失敗しました\n${error.message}`, 'error');
+                console.error('PDFアップロードエラー:', error);
+            }
+        }
+
+        // メッセージを表示
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 5000);
+        }
+
+        // 初期化実行
+        init();
+    </script>
+</body>
+</html>

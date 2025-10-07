@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>API接続テスト</title>
+</head>
+<body>
+    <h1>API接続テスト</h1>
+    <div id="status"></div>
+    <h2>顧客データ:</h2>
+    <pre id="customers"></pre>
+    <h2>商品データ:</h2>
+    <pre id="products"></pre>
+
+    <script>
+        async function test() {
+            const status = document.getElementById('status');
+
+            try {
+                // 顧客データを取得
+                const custResponse = await fetch('/api/customers');
+                const customers = await custResponse.json();
+                document.getElementById('customers').textContent = JSON.stringify(customers, null, 2);
+
+                // 商品データを取得
+                const prodResponse = await fetch('/api/products');
+                const products = await prodResponse.json();
+                document.getElementById('products').textContent = JSON.stringify(products, null, 2);
+
+                status.innerHTML = '<span style="color: green;">✅ 接続成功！</span>';
+            } catch (error) {
+                status.innerHTML = `<span style="color: red;">❌ エラー: ${error.message}</span>`;
+                console.error(error);
+            }
+        }
+
+        test();
+    </script>
+</body>
+</html>
